@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Il Mio Ciclo - Storico con Intervalli</title>
+    <title>Il Mio Ciclo - Ciclo Fisso 28 Giorni</title>
     <style>
         body { font-family: sans-serif; background: #fff5f5; color: #333; text-align: center; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto 20px; text-align: left; }
@@ -90,7 +90,6 @@
             calculateNextPeriod();
         }
 
-        // Mostra la lista delle date calcolando la distanza in giorni
         function renderHistory() {
             const listElement = document.getElementById('historyList');
             listElement.innerHTML = "";
@@ -106,9 +105,6 @@
                 const dateObj = new Date(dateString);
                 const formattedDate = dateObj.toLocaleDateString('it-IT', options);
                 
-                // Calcola la distanza rispetto al ciclo precedente (se esiste nell'array)
-                // Ricorda che l'array è ordinato dal più recente al più vecchio, 
-                // quindi il ciclo precedente cronologicamente si trova a index + 1
                 let intervalText = "(Primo inserimento)";
                 if (index < periodHistory.length - 1) {
                     const prevDateObj = new Date(periodHistory[index + 1]);
@@ -130,6 +126,7 @@
             });
         }
 
+        // Calcola la previsione usando SEMPRE 28 giorni fisso
         function calculateNextPeriod() {
             const predictionElement = document.getElementById('prediction');
 
@@ -139,27 +136,12 @@
             }
 
             const lastPeriodDate = new Date(periodHistory[0]);
-            let averageDuration = 28;
             
-            if (periodHistory.length >= 2) {
-                let totalDays = 0;
-                let intervals = periodHistory.length - 1;
-                
-                for(let i = 0; i < intervals; i++) {
-                    const d1 = new Date(periodHistory[i]);
-                    const d2 = new Date(periodHistory[i+1]);
-                    const diffTime = d1 - d2;
-                    totalDays += Math.round(diffTime / (1000 * 60 * 60 * 24));
-                }
-                
-                const calculatedAvg = Math.round(totalDays / intervals);
-                if (calculatedAvg >= 20 && calculatedAvg <= 45) {
-                    averageDuration = calculatedAvg;
-                }
-            }
+            // Impostazione rigida a 28 giorni
+            const fixedDuration = 28;
 
             const nextPeriodDate = new Date(lastPeriodDate);
-            nextPeriodDate.setDate(nextPeriodDate.getDate() + averageDuration);
+            nextPeriodDate.setDate(nextPeriodDate.getDate() + fixedDuration);
 
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             const nextDateFormatted = nextPeriodDate.toLocaleDateString('it-IT', options);
@@ -181,7 +163,7 @@
 
             predictionElement.innerHTML = `
                 L'ultimo ciclo è iniziato il: <b>${lastPeriodDate.toLocaleDateString('it-IT')}</b><br>
-                <small style="color:#7f8c8d;">(Media ciclo calcolata: ${averageDuration} giorni)</small><br><br>
+                <small style="color:#7f8c8d;">(Calcolo basato su ciclo fisso di 28 giorni)</small><br><br>
                 Il prossimo è previsto il:<br>
                 <span class="highlight">${nextDateFormatted}</span>${countdownText}
             `;

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Il Mio Ciclo - Storico</title>
+    <title>Il Mio Ciclo - Storico con Intervalli</title>
     <style>
         body { font-family: sans-serif; background: #fff5f5; color: #333; text-align: center; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto 20px; text-align: left; }
@@ -18,6 +18,7 @@
         .history-list { list-style: none; padding: 0; margin: 15px 0 0 0; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; font-size: 15px; }
         .history-item:last-child { border-bottom: none; }
+        .days-interval { display: block; font-size: 12px; color: #7f8c8d; margin-top: 2px; }
         .btn-delete { background: #b2bec3; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; width: auto; margin: 0; }
         .btn-delete:hover { background: #d63031; }
     </style>
@@ -42,25 +43,20 @@
     </div>
 
     <script>
-        // Array globale che conterrà tutte le date (es. ["2026-10-02", "2026-09-03"])
         let periodHistory = [];
 
-        // Al caricamento della pagina, recupera lo storico salvato
         window.onload = function() {
             const savedHistory = localStorage.getItem('periodHistory');
             if (savedHistory) {
                 periodHistory = JSON.parse(savedHistory);
-                // Ordina le date dalla più recente alla più vecchia
                 periodHistory.sort((a, b) => new Date(b) - new Date(a));
             }
             
-            // Imposta la data di oggi come predefinita nell'input per comodità
             document.getElementById('newPeriodDate').value = new Date().toISOString().split('T')[0];
             
             renderAll();
         };
 
-        // Funzione per aggiungere una nuova data
         function addPeriod() {
             const dateInput = document.getElementById('newPeriodDate').value;
 
@@ -69,25 +65,18 @@
                 return;
             }
 
-            // Evita duplicati della stessa data
             if (periodHistory.includes(dateInput)) {
                 alert("Questa data è già presente nello storico!");
                 return;
             }
 
-            // Aggiungi la data all'inizio dell'array
             periodHistory.unshift(dateInput);
-            
-            // Riordina per sicurezza
             periodHistory.sort((a, b) => new Date(b) - new Date(a));
-
-            // Salva nel localStorage convertendo l'array in stringa
             localStorage.setItem('periodHistory', JSON.stringify(periodHistory));
 
             renderAll();
         }
 
-        // Funzione per eliminare una data specifica dallo storico
         function deletePeriod(index) {
             if (confirm("Vuoi davvero eliminare questa data dallo storico?")) {
                 periodHistory.splice(index, 1);
@@ -96,13 +85,12 @@
             }
         }
 
-        // Funzione centrale che aggiorna sia la previsione che l'interfaccia dello storico
         function renderAll() {
             renderHistory();
             calculateNextPeriod();
         }
 
-        // Mostra la lista delle date sullo schermo
+        // Mostra la lista delle date calcolando la distanza in giorni
         function renderHistory() {
             const listElement = document.getElementById('historyList');
             listElement.innerHTML = "";
@@ -118,17 +106,30 @@
                 const dateObj = new Date(dateString);
                 const formattedDate = dateObj.toLocaleDateString('it-IT', options);
                 
+                // Calcola la distanza rispetto al ciclo precedente (se esiste nell'array)
+                // Ricorda che l'array è ordinato dal più recente al più vecchio, 
+                // quindi il ciclo precedente cronologicamente si trova a index + 1
+                let intervalText = "(Primo inserimento)";
+                if (index < periodHistory.length - 1) {
+                    const prevDateObj = new Date(periodHistory[index + 1]);
+                    const diffTime = dateObj - prevDateObj;
+                    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+                    intervalText = `(Distanza: ${diffDays} gg)`;
+                }
+                
                 const li = document.createElement('li');
                 li.className = 'history-item';
                 li.innerHTML = `
-                    <span>📅 ${formattedDate}</span>
+                    <div>
+                        <span>📅 ${formattedDate}</span>
+                        <span class="days-interval">${intervalText}</span>
+                    </div>
                     <button class="btn-delete" onclick="deletePeriod(${index})">Elimina</button>
                 `;
                 listElement.appendChild(li);
             });
         }
 
-        // Calcola la previsione basandosi sull'ultima data inserita
         function calculateNextPeriod() {
             const predictionElement = document.getElementById('prediction');
 
@@ -137,13 +138,9 @@
                 return;
             }
 
-            // L'ultima mestruazione è la prima dell'array ordinato
             const lastPeriodDate = new Date(periodHistory[0]);
-            
-            // Calcolo della durata media (Default 28 giorni)
             let averageDuration = 28;
             
-            // Logica avanzata: se ci sono almeno 2 cicli storici, calcola la media REALE dei tuoi giorni
             if (periodHistory.length >= 2) {
                 let totalDays = 0;
                 let intervals = periodHistory.length - 1;
@@ -155,22 +152,18 @@
                     totalDays += Math.round(diffTime / (1000 * 60 * 60 * 24));
                 }
                 
-                // Se la media calcolata ha senso (es. tra 20 e 45 giorni), usala!
                 const calculatedAvg = Math.round(totalDays / intervals);
                 if (calculatedAvg >= 20 && calculatedAvg <= 45) {
                     averageDuration = calculatedAvg;
                 }
             }
 
-            // Calcola la data futura
             const nextPeriodDate = new Date(lastPeriodDate);
             nextPeriodDate.setDate(nextPeriodDate.getDate() + averageDuration);
 
-            // Formatta la data futura
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
             const nextDateFormatted = nextPeriodDate.toLocaleDateString('it-IT', options);
 
-            // Calcola il countdown
             const today = new Date();
             today.setHours(0,0,0,0);
             nextPeriodDate.setHours(0,0,0,0);

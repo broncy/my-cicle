@@ -3,85 +3,195 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Il Mio Ciclo</title>
+    <title>Il Mio Ciclo - Storico</title>
     <style>
         body { font-family: sans-serif; background: #fff5f5; color: #333; text-align: center; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto 20px; }
-        h1 { color: #d63031; }
-        button { background: #d63031; color: white; border: none; padding: 12px 20px; border-radius: 25px; font-size: 16px; cursor: pointer; width: 100%; }
-        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
-        .result { font-size: 18px; font-weight: bold; margin-top: 15px; color: #b2bec3; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto 20px; text-align: left; }
+        h1, h2 { color: #d63031; text-align: center; margin-top: 0; }
+        p { margin: 5px 0; }
+        button { background: #d63031; color: white; border: none; padding: 12px 20px; border-radius: 25px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 10px; }
+        input { width: 94%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .result { font-size: 18px; font-weight: bold; margin-top: 15px; color: #555; text-align: center; }
         .highlight { color: #e84393; font-size: 22px; }
+        
+        /* Stili per la lista dello storico */
+        .history-list { list-style: none; padding: 0; margin: 15px 0 0 0; }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; font-size: 15px; }
+        .history-item:last-child { border-bottom: none; }
+        .btn-delete { background: #b2bec3; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; width: auto; margin: 0; }
+        .btn-delete:hover { background: #d63031; }
     </style>
 </head>
 <body>
 
     <div class="card">
         <h1>🩸 Il Mio Ciclo</h1>
-        <p>Inserisci l'ultimo giorno di inizio:</p>
-        <input type="date" id="lastPeriod">
-        
-        <p>Durata media ciclo (giorni):</p>
-        <input type="number" id="cycleDuration" value="28">
-        
-        <button onclick="saveAndCalculate()">Salva e Calcola</button>
+        <p><b>Segnala inizio ciclo:</b></p>
+        <input type="date" id="newPeriodDate">
+        <button onclick="addPeriod()">Registra Data</button>
     </div>
 
     <div class="card">
         <h2>Prossima Previsione</h2>
-        <div id="prediction" class="result">Inserisci i dati per vedere la previsione.</div>
+        <div id="prediction" class="result">Inserisci almeno una data per vedere la previsione.</div>
+    </div>
+
+    <div class="card">
+        <h2>Visualizza Storico</h2>
+        <ul id="historyList" class="history-list"></ul>
     </div>
 
     <script>
-        // Al caricamento della pagina, recupera i dati se esistono già
+        // Array globale che conterrà tutte le date (es. ["2026-10-02", "2026-09-03"])
+        let periodHistory = [];
+
+        // Al caricamento della pagina, recupera lo storico salvato
         window.onload = function() {
-            if (localStorage.getItem('lastPeriod')) {
-                document.getElementById('lastPeriod').value = localStorage.getItem('lastPeriod');
-                document.getElementById('cycleDuration').value = localStorage.getItem('cycleDuration') || 28;
-                calculatePrediction();
+            const savedHistory = localStorage.getItem('periodHistory');
+            if (savedHistory) {
+                periodHistory = JSON.parse(savedHistory);
+                // Ordina le date dalla più recente alla più vecchia
+                periodHistory.sort((a, b) => new Date(b) - new Date(a));
             }
+            
+            // Imposta la data di oggi come predefinita nell'input per comodità
+            document.getElementById('newPeriodDate').value = new Date().toISOString().split('T')[0];
+            
+            renderAll();
         };
 
-        function saveAndCalculate() {
-            const lastPeriodVal = document.getElementById('lastPeriod').value;
-            const durationVal = document.getElementById('cycleDuration').value;
+        // Funzione per aggiungere una nuova data
+        function addPeriod() {
+            const dateInput = document.getElementById('newPeriodDate').value;
 
-            if (!lastPeriodVal) {
-                alert("Per favore, seleziona una data.");
+            if (!dateInput) {
+                alert("Per favore, seleziona una data valida.");
                 return;
             }
 
-            // Salva i dati nel browser del telefono (come i vecchi cookie, ma locali e permanenti)
-            localStorage.setItem('lastPeriod', lastPeriodVal);
-            localStorage.setItem('cycleDuration', durationVal);
+            // Evita duplicati della stessa data
+            if (periodHistory.includes(dateInput)) {
+                alert("Questa data è già presente nello storico!");
+                return;
+            }
 
-            calculatePrediction();
+            // Aggiungi la data all'inizio dell'array
+            periodHistory.unshift(dateInput);
+            
+            // Riordina per sicurezza
+            periodHistory.sort((a, b) => new Date(b) - new Date(a));
+
+            // Salva nel localStorage convertendo l'array in stringa
+            localStorage.setItem('periodHistory', JSON.stringify(periodHistory));
+
+            renderAll();
         }
 
-        function calculatePrediction() {
-            const lastPeriod = new Date(localStorage.getItem('lastPeriod'));
-            const duration = parseInt(localStorage.getItem('cycleDuration'));
+        // Funzione per eliminare una data specifica dallo storico
+        function deletePeriod(index) {
+            if (confirm("Vuoi davvero eliminare questa data dallo storico?")) {
+                periodHistory.splice(index, 1);
+                localStorage.setItem('periodHistory', JSON.stringify(periodHistory));
+                renderAll();
+            }
+        }
 
-            // Aggiunge i giorni alla data iniziale (Logica pura JavaScript)
-            lastPeriod.setDate(lastPeriod.getDate() + duration);
+        // Funzione centrale che aggiorna sia la previsione che l'interfaccia dello storico
+        function renderAll() {
+            renderHistory();
+            calculateNextPeriod();
+        }
 
-            // Formatta la data in italiano
+        // Mostra la lista delle date sullo schermo
+        function renderHistory() {
+            const listElement = document.getElementById('historyList');
+            listElement.innerHTML = "";
+
+            if (periodHistory.length === 0) {
+                listElement.innerHTML = "<li style='text-align:center; color:#aaa;'>Nessun dato registrato.</li>";
+                return;
+            }
+
+            const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+
+            periodHistory.forEach((dateString, index) => {
+                const dateObj = new Date(dateString);
+                const formattedDate = dateObj.toLocaleDateString('it-IT', options);
+                
+                const li = document.createElement('li');
+                li.className = 'history-item';
+                li.innerHTML = `
+                    <span>📅 ${formattedDate}</span>
+                    <button class="btn-delete" onclick="deletePeriod(${index})">Elimina</button>
+                `;
+                listElement.appendChild(li);
+            });
+        }
+
+        // Calcola la previsione basandosi sull'ultima data inserita
+        function calculateNextPeriod() {
+            const predictionElement = document.getElementById('prediction');
+
+            if (periodHistory.length === 0) {
+                predictionElement.innerHTML = "Inserisci almeno una data per vedere la previsione.";
+                return;
+            }
+
+            // L'ultima mestruazione è la prima dell'array ordinato
+            const lastPeriodDate = new Date(periodHistory[0]);
+            
+            // Calcolo della durata media (Default 28 giorni)
+            let averageDuration = 28;
+            
+            // Logica avanzata: se ci sono almeno 2 cicli storici, calcola la media REALE dei tuoi giorni
+            if (periodHistory.length >= 2) {
+                let totalDays = 0;
+                let intervals = periodHistory.length - 1;
+                
+                for(let i = 0; i < intervals; i++) {
+                    const d1 = new Date(periodHistory[i]);
+                    const d2 = new Date(periodHistory[i+1]);
+                    const diffTime = d1 - d2;
+                    totalDays += Math.round(diffTime / (1000 * 60 * 60 * 24));
+                }
+                
+                // Se la media calcolata ha senso (es. tra 20 e 45 giorni), usala!
+                const calculatedAvg = Math.round(totalDays / intervals);
+                if (calculatedAvg >= 20 && calculatedAvg <= 45) {
+                    averageDuration = calculatedAvg;
+                }
+            }
+
+            // Calcola la data futura
+            const nextPeriodDate = new Date(lastPeriodDate);
+            nextPeriodDate.setDate(nextPeriodDate.getDate() + averageDuration);
+
+            // Formatta la data futura
             const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const nextDateFormatted = lastPeriod.toLocaleDateString('it-IT', options);
+            const nextDateFormatted = nextPeriodDate.toLocaleDateString('it-IT', options);
 
-            // Calcola quanti giorni mancano
+            // Calcola il countdown
             const today = new Date();
             today.setHours(0,0,0,0);
-            lastPeriod.setHours(0,0,0,0);
-            const diffTime = lastPeriod - today;
+            nextPeriodDate.setHours(0,0,0,0);
+            const diffTime = nextPeriodDate - today;
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
             let countdownText = "";
-            if (diffDays > 0) countdownText = `<br>Mancano <b>${diffDays}</b> giorni.`;
-            else if (diffDays === 0) countdownText = `<br><b>Inizia oggi!</b>`;
-            else countdownText = `<br>Ritardo di <b>${Math.abs(diffDays)}</b> giorni.`;
+            if (diffDays > 0) {
+                countdownText = `<br>Mancano <b>${diffDays}</b> giorni.`;
+            } else if (diffDays === 0) {
+                countdownText = `<br><b>Inizia oggi!</b>`;
+            } else {
+                countdownText = `<br>Ritardo di <b>${Math.abs(diffDays)}</b> giorni.`;
+            }
 
-            document.getElementById('prediction').innerHTML = `Il prossimo ciclo è previsto il:<br><span class="highlight">${nextDateFormatted}</span>${countdownText}`;
+            predictionElement.innerHTML = `
+                L'ultimo ciclo è iniziato il: <b>${lastPeriodDate.toLocaleDateString('it-IT')}</b><br>
+                <small style="color:#7f8c8d;">(Media ciclo calcolata: ${averageDuration} giorni)</small><br><br>
+                Il prossimo è previsto il:<br>
+                <span class="highlight">${nextDateFormatted}</span>${countdownText}
+            `;
         }
     </script>
 </body>

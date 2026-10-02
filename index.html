@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Il Mio Ciclo</title>
+    <style>
+        body { font-family: sans-serif; background: #fff5f5; color: #333; text-align: center; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto 20px; }
+        h1 { color: #d63031; }
+        button { background: #d63031; color: white; border: none; padding: 12px 20px; border-radius: 25px; font-size: 16px; cursor: pointer; width: 100%; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .result { font-size: 18px; font-weight: bold; margin-top: 15px; color: #b2bec3; }
+        .highlight { color: #e84393; font-size: 22px; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🩸 Il Mio Ciclo</h1>
+        <p>Inserisci l'ultimo giorno di inizio:</p>
+        <input type="date" id="lastPeriod">
+        
+        <p>Durata media ciclo (giorni):</p>
+        <input type="number" id="cycleDuration" value="28">
+        
+        <button onclick="saveAndCalculate()">Salva e Calcola</button>
+    </div>
+
+    <div class="card">
+        <h2>Prossima Previsione</h2>
+        <div id="prediction" class="result">Inserisci i dati per vedere la previsione.</div>
+    </div>
+
+    <script>
+        // Al caricamento della pagina, recupera i dati se esistono già
+        window.onload = function() {
+            if (localStorage.getItem('lastPeriod')) {
+                document.getElementById('lastPeriod').value = localStorage.getItem('lastPeriod');
+                document.getElementById('cycleDuration').value = localStorage.getItem('cycleDuration') || 28;
+                calculatePrediction();
+            }
+        };
+
+        function saveAndCalculate() {
+            const lastPeriodVal = document.getElementById('lastPeriod').value;
+            const durationVal = document.getElementById('cycleDuration').value;
+
+            if (!lastPeriodVal) {
+                alert("Per favore, seleziona una data.");
+                return;
+            }
+
+            // Salva i dati nel browser del telefono (come i vecchi cookie, ma locali e permanenti)
+            localStorage.setItem('lastPeriod', lastPeriodVal);
+            localStorage.setItem('cycleDuration', durationVal);
+
+            calculatePrediction();
+        }
+
+        function calculatePrediction() {
+            const lastPeriod = new Date(localStorage.getItem('lastPeriod'));
+            const duration = parseInt(localStorage.getItem('cycleDuration'));
+
+            // Aggiunge i giorni alla data iniziale (Logica pura JavaScript)
+            lastPeriod.setDate(lastPeriod.getDate() + duration);
+
+            // Formatta la data in italiano
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const nextDateFormatted = lastPeriod.toLocaleDateString('it-IT', options);
+
+            // Calcola quanti giorni mancano
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            lastPeriod.setHours(0,0,0,0);
+            const diffTime = lastPeriod - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            let countdownText = "";
+            if (diffDays > 0) countdownText = `<br>Mancano <b>${diffDays}</b> giorni.`;
+            else if (diffDays === 0) countdownText = `<br><b>Inizia oggi!</b>`;
+            else countdownText = `<br>Ritardo di <b>${Math.abs(diffDays)}</b> giorni.`;
+
+            document.getElementById('prediction').innerHTML = `Il prossimo ciclo è previsto il:<br><span class="highlight">${nextDateFormatted}</span>${countdownText}`;
+        }
+    </script>
+</body>
+</html>

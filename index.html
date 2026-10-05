@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩸</text></svg>">
-    <title>Il Mio Ciclo - Ciclo Fisso 28 Giorni</title>
+    <title>Il Mio Ciclo - Database Cloud</title>
+    <!-- Includiamo la libreria ufficiale di Supabase direttamente da internet -->
+    <script src="https://jsdelivr.net"></script>
     <style>
         body { font-family: sans-serif; background: #fff5f5; color: #333; text-align: center; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto 20px; text-align: left; }
@@ -14,75 +15,104 @@
         input { width: 94%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
         .result { font-size: 18px; font-weight: bold; margin-top: 15px; color: #555; text-align: center; }
         .highlight { color: #e84393; font-size: 22px; }
-        
-        /* Stili per la lista dello storico */
         .history-list { list-style: none; padding: 0; margin: 15px 0 0 0; }
         .history-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; font-size: 15px; }
         .history-item:last-child { border-bottom: none; }
         .days-interval { display: block; font-size: 12px; color: #7f8c8d; margin-top: 2px; }
         .btn-delete { background: #b2bec3; color: white; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; width: auto; margin: 0; }
         .btn-delete:hover { background: #d63031; }
+        .loading { text-align: center; color: #7f8c8d; font-style: italic; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h1>🩸 Il Mio Ciclo</h1>
+        <h1>🩸 Il Mio Ciclo Cloud</h1>
         <p><b>Segnala inizio ciclo:</b></p>
         <input type="date" id="newPeriodDate">
-        <button onclick="addPeriod()">Registra Data</button>
+        <button onclick="addPeriod()">Registra Data nel DB</button>
     </div>
 
     <div class="card">
         <h2>Prossima Previsione</h2>
-        <div id="prediction" class="result">Inserisci almeno una data per vedere la previsione.</div>
+        <div id="prediction" class="result">Connessione al database in corso...</div>
     </div>
 
     <div class="card">
         <h2>Visualizza Storico</h2>
-        <ul id="historyList" class="history-list"></ul>
+        <ul id="historyList" class="history-list">
+            <li class="loading">Caricamento dati...</li>
+        </ul>
     </div>
 
     <script>
+        // CONFIGURAZIONE SUPABASE: Sostituisci queste stringhe con i tuoi dati reali
+        const SUPABASE_URL = "INSERISCI_QUI_IL_TUO_PROJECT_URL";
+        const SUPABASE_KEY = "INSERISCI_QUI_LA_TUA_ANON_PUBLIC_KEY";
+        
+        // Inizializzazione del client Supabase
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        
         let periodHistory = [];
 
         window.onload = function() {
-            const savedHistory = localStorage.getItem('periodHistory');
-            if (savedHistory) {
-                periodHistory = JSON.parse(savedHistory);
-                periodHistory.sort((a, b) => new Date(b) - new Date(a));
-            }
-            
             document.getElementById('newPeriodDate').value = new Date().toISOString().split('T')[0];
-            
-            renderAll();
+            fetchDataFromDB();
         };
 
-        function addPeriod() {
-            const dateInput = document.getElementById('newPeriodDate').value;
+        // Funzione per scaricare i dati dal database cloud
+        async function fetchDataFromDB() {
+            const { data, error } = await supabase
+                .from('cicli')
+                .select('data_ciclo')
+                .order('data_ciclo', { ascending: false });
 
-            if (!dateInput) {
-                alert("Per favore, seleziona una data valida.");
+            if (error) {
+                console.error("Errore nel download dei dati:", error);
+                alert("Errore nel caricamento dei dati dal database.");
                 return;
             }
 
-            if (periodHistory.includes(dateInput)) {
-                alert("Questa data è già presente nello storico!");
-                return;
-            }
-
-            periodHistory.unshift(dateInput);
-            periodHistory.sort((a, b) => new Date(b) - new Date(a));
-            localStorage.setItem('periodHistory', JSON.stringify(periodHistory));
-
+            // Trasformiamo i dati ricevuti in un array semplice di stringhe ["YYYY-MM-DD", ...]
+            periodHistory = data.map(item => item.data_ciclo);
             renderAll();
         }
 
-        function deletePeriod(index) {
-            if (confirm("Vuoi davvero eliminare questa data dallo storico?")) {
-                periodHistory.splice(index, 1);
-                localStorage.setItem('periodHistory', JSON.stringify(periodHistory));
-                renderAll();
+        // Funzione per inserire una nuova data nel database cloud
+        async function addPeriod() {
+            const dateInput = document.getElementById('newPeriodDate').value;
+
+            if (!dateInput) { alert("Per favore, seleziona una data valida."); return; }
+            if (periodHistory.includes(dateInput)) { alert("Questa data è già presente!"); return; }
+
+            // INSERT nel database
+            const { error } = await supabase
+                .from('cicli')
+                .insert([{ data_ciclo: dateInput }]);
+
+            if (error) {
+                console.error("Errore nell'inserimento:", error);
+                alert("Impossibile salvare la data nel database cloud.");
+            } else {
+                // Se il salvataggio è andato a buon fine, riscarica la lista aggiornata
+                fetchDataFromDB();
+            }
+        }
+
+        // Funzione per eliminare una data dal database cloud
+        async function deletePeriod(dateString) {
+            if (confirm("Vuoi davvero eliminare questa data dal database cloud?")) {
+                const { error } = await supabase
+                    .from('cicli')
+                    .delete()
+                    .eq('data_ciclo', dateString);
+
+                if (error) {
+                    console.error("Errore nella cancellazione:", error);
+                    alert("Impossibile eliminare il dato.");
+                } else {
+                    fetchDataFromDB();
+                }
             }
         }
 
@@ -121,13 +151,13 @@
                         <span>📅 ${formattedDate}</span>
                         <span class="days-interval">${intervalText}</span>
                     </div>
-                    <button class="btn-delete" onclick="deletePeriod(${index})">Elimina</button>
+                    <!-- Passiamo la stringa della data alla funzione di eliminazione -->
+                    <button class="btn-delete" onclick="deletePeriod('${dateString}')">Elimina</button>
                 `;
                 listElement.appendChild(li);
             });
         }
 
-        // Calcola la previsione usando SEMPRE 28 giorni fisso
         function calculateNextPeriod() {
             const predictionElement = document.getElementById('prediction');
 
@@ -137,8 +167,6 @@
             }
 
             const lastPeriodDate = new Date(periodHistory[0]);
-            
-            // Impostazione rigida a 28 giorni
             const fixedDuration = 28;
 
             const nextPeriodDate = new Date(lastPeriodDate);
@@ -154,13 +182,9 @@
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
             let countdownText = "";
-            if (diffDays > 0) {
-                countdownText = `<br>Mancano <b>${diffDays}</b> giorni.`;
-            } else if (diffDays === 0) {
-                countdownText = `<br><b>Inizia oggi!</b>`;
-            } else {
-                countdownText = `<br>Ritardo di <b>${Math.abs(diffDays)}</b> giorni.`;
-            }
+            if (diffDays > 0) countdownText = `<br>Mancano <b>${diffDays}</b> giorni.`;
+            else if (diffDays === 0) countdownText = `<br><b>Inizia oggi!</b>`;
+            else countdownText = `<br>Ritardo di <b>${Math.abs(diffDays)}</b> giorni.`;
 
             predictionElement.innerHTML = `
                 L'ultimo ciclo è iniziato il: <b>${lastPeriodDate.toLocaleDateString('it-IT')}</b><br>

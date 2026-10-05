@@ -62,11 +62,21 @@
         window.onload = function() {
             document.getElementById('newPeriodDate').value = new Date().toISOString().split('T')[0];
             
-            try {
-                // CORREZIONE: Inizializzazione corretta con il prefisso dell'oggetto della libreria CDN
-                supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+         try {
+                // Controlla dove la CDN ha memorizzato la funzione per inizializzare il client
+                if (window.supabase && window.supabase.createClient) {
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                } else if (window.supabaseJS && window.supabaseJS.createClient) {
+                    supabase = window.supabaseJS.createClient(SUPABASE_URL, SUPABASE_KEY);
+                } else {
+                    // Cerca il modulo globale standard
+                    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+                }
+                
                 fetchDataFromDB();
             } catch (e) {
+                alert("Errore nell'inizializzazione del client di database: " + e.message);
+            }
                 alert("Errore nell'inizializzazione del client di database: " + e.message);
             }
         };

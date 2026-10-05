@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Il Mio Ciclo - Database Cloud</title>
-    <!-- Caricamento della libreria ufficiale di Supabase -->
-    <script src="https://jsdelivr.net"></script>
     <style>
         body { font-family: sans-serif; background: #fff5f5; color: #333; text-align: center; padding: 20px; }
         .card { background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto 20px; text-align: left; }
@@ -35,7 +33,7 @@
 
     <div class="card">
         <h2>Prossima Previsione</h2>
-        <div id="prediction" class="result">Connessione al database in corso...</div>
+        <div id="prediction" class="result">Connessione al database...</div>
     </div>
 
     <div class="card">
@@ -46,40 +44,37 @@
     </div>
 
     <script>
-        // Cattura qualsiasi errore JavaScript globale e lo mostra a schermo con un alert
-        window.onerror = function(message, source, lineno, colno, error) {
-            alert("Errore Script Globale:\n" + message + "\nAlla riga: " + lineno);
-            return false;
-        };
+        // CONFIGURAZIONE SUPABASE: Sostituisci i testi tra virgolette con i tuoi dati reali
+        // ATTENZIONE: L'URL non deve avere lo slash finale (es. deve finire con .co e NON .co/)
+        const SUPABASE_URL = "https://zxtpulxzyjvnzmedyfbb.supabase.co/rest/v1"; 
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4dHB1bHh6eWp2bnptZWR5ZmJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExODQ0NDYsImV4cCI6MjEwNjc2MDQ0Nn0.0Ja7NglbWJZHDV3nL-OlHgBxC4sN35ciOLT7-9MVSjI"; 
 
-        // CONFIGURAZIONE SUPABASE: Sostituisci con le tue stringhe reali
-        const SUPABASE_URL = "https://zxtpulxzyjvnzmedyfbb.supabase.co/rest/v1";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4dHB1bHh6eWp2bnptZWR5ZmJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExODQ0NDYsImV4cCI6MjEwNjc2MDQ0Nn0.0Ja7NglbWJZHDV3nL-OlHgBxC4sN35ciOLT7-9MVSjI";
-        
-        // Rinominiamo la variabile interna per evitare conflitti con l'oggetto globale della libreria
-        let supabaseClient;
         let periodHistory = [];
 
-         window.onload = function() {
-            // Imposta la data di oggi nell'input per comodità
+        window.onload = function() {
+            // Imposta la data di oggi nell'input
             document.getElementById('newPeriodDate').value = new Date().toISOString().split('T')[0];
-            
-            // Avvia direttamente il download dei dati senza controllare librerie esterne
             fetchDataFromDB();
         };
 
+        // SCARICA I DATI (SELECT)
         async function fetchDataFromDB() {
             try {
-                const { data, error } = await supabaseClient
-                    .from('cicli')
-                    .select('data_ciclo')
-                    .order('data_ciclo', { ascending: false });
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/cicli?select=data_ciclo&order=data_ciclo.desc`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
+                    }
+                });
 
-                if (error) {
-                    alert("Errore di risposta da Supabase: " + error.message + "\nCodice: " + error.code);
+                if (!response.ok) {
+                    const errText = await response.text();
+                    alert("Errore dal server DB: " + errText);
                     return;
                 }
 
+                const data = await response.json();
                 periodHistory = data.map(item => item.data_ciclo);
                 renderAll();
             } catch (err) {
@@ -87,43 +82,56 @@
             }
         }
 
+        // INSERISCE UN DATO (INSERT)
         async function addPeriod() {
             const dateInput = document.getElementById('newPeriodDate').value;
-
-            if (!dateInput) { alert("Per favore, seleziona una data valida."); return; }
-            if (periodHistory.includes(dateInput)) { alert("Questa data è già presente!"); return; }
+            if (!dateInput) { alert("Seleziona una data valida."); return; }
+            if (periodHistory.includes(dateInput)) { alert("Data già presente!"); return; }
 
             try {
-                const { error } = await supabaseClient
-                    .from('cicli')
-                    .insert([{ data_ciclo: dateInput }]);
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/cicli`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({ data_ciclo: dateInput })
+                });
 
-                if (error) {
-                    alert("Errore durante il salvataggio: " + error.message);
+                if (!response.ok) {
+                    const errText = await response.text();
+                    alert("Errore nel salvataggio DB: " + errText);
                 } else {
                     fetchDataFromDB();
                 }
             } catch (err) {
-                alert("Errore di rete durante l'inserimento: " + err.message);
+                alert("Errore di rete in inserimento: " + err.message);
             }
         }
 
+        // CANCELLA UN DATO (DELETE)
         async function deletePeriod(dateString) {
-            if (confirm("Vuoi davvero eliminare questa data dal database cloud?")) {
-                try {
-                    const { error } = await supabaseClient
-                        .from('cicli')
-                        .delete()
-                        .eq('data_ciclo', dateString);
+            if (!confirm("Vuoi davvero eliminare questa data dal cloud?")) return;
 
-                    if (error) {
-                        alert("Errore durante la cancellazione: " + error.message);
-                    } else {
-                        fetchDataFromDB();
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/cicli?data_ciclo=eq.${dateString}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`
                     }
-                } catch (err) {
-                    alert("Errore di rete durante la cancellazione: " + err.message);
+                });
+
+                if (!response.ok) {
+                    const errText = await response.text();
+                    alert("Errore nella cancellazione DB: " + errText);
+                } else {
+                    fetchDataFromDB();
                 }
+            } catch (err) {
+                alert("Errore di rete in cancellazione: " + err.message);
             }
         }
 
@@ -170,7 +178,6 @@
 
         function calculateNextPeriod() {
             const predictionElement = document.getElementById('prediction');
-
             if (periodHistory.length === 0) {
                 predictionElement.innerHTML = "Inserisci almeno una data per vedere la previsione.";
                 return;

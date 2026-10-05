@@ -59,23 +59,26 @@
             document.getElementById('newPeriodDate').value = new Date().toISOString().split('T')[0];
             fetchDataFromDB();
         };
+// Funzione diagnostica aggiornata
+         async function fetchDataFromDB() {
+            try {
+                const { data, error } = await supabase
+                    .from('cicli')
+                    .select('data_ciclo')
+                    .order('data_ciclo', { ascending: false });
 
-        // Funzione per scaricare i dati dal database cloud
-        async function fetchDataFromDB() {
-            const { data, error } = await supabase
-                .from('cicli')
-                .select('data_ciclo')
-                .order('data_ciclo', { ascending: false });
+                if (error) {
+                    // Questo alert ti dirà esattamente quale problema riscontra il server
+                    alert("Errore Supabase: " + error.message + " (Codice: " + error.code + ")");
+                    console.error(error);
+                    return;
+                }
 
-            if (error) {
-                console.error("Errore nel download dei dati:", error);
-                alert("Errore nel caricamento dei dati dal database.");
-                return;
+                periodHistory = data.map(item => item.data_ciclo);
+                renderAll();
+            } catch (err) {
+                alert("Errore di rete o URL errato: " + err.message);
             }
-
-            // Trasformiamo i dati ricevuti in un array semplice di stringhe ["YYYY-MM-DD", ...]
-            periodHistory = data.map(item => item.data_ciclo);
-            renderAll();
         }
 
         // Funzione per inserire una nuova data nel database cloud

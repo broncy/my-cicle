@@ -60,20 +60,12 @@
         let supabaseClient;
         let periodHistory = [];
 
-        window.onload = function() {
+         window.onload = function() {
+            // Imposta la data di oggi nell'input per comodità
             document.getElementById('newPeriodDate').value = new Date().toISOString().split('T')[0];
             
-            try {
-                // Inizializzazione pulita usando l'oggetto globale fornito dalla CDN
-                if (window.supabase && window.supabase.createClient) {
-                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                    fetchDataFromDB();
-                } else {
-                    alert("La libreria Supabase non è stata caricata correttamente da internet. Verifica la connessione.");
-                }
-            } catch (e) {
-                alert("Errore nell'inizializzazione del database: " + e.message);
-            }
+            // Avvia direttamente il download dei dati senza controllare librerie esterne
+            fetchDataFromDB();
         };
 
         async function fetchDataFromDB() {

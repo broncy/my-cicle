@@ -48,42 +48,37 @@
     <script>
         // Cattura qualsiasi errore JavaScript globale e lo mostra a schermo con un alert
         window.onerror = function(message, source, lineno, colno, error) {
-            alert("Errore Codice Script:\n" + message + "\nAlla riga: " + lineno);
+            alert("Errore Script Globale:\n" + message + "\nAlla riga: " + lineno);
             return false;
         };
 
-        // CONFIGURAZIONE SUPABASE
+        // CONFIGURAZIONE SUPABASE: Sostituisci con le tue stringhe reali
         const SUPABASE_URL = "https://zxtpulxzyjvnzmedyfbb.supabase.co/rest/v1/";
-        const SUPABASE_KEY = "sb_publishable_cKdcTxJ0OlKT6xE72FQAtg_b0Nwq61T";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4dHB1bHh6eWp2bnptZWR5ZmJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExODQ0NDYsImV4cCI6MjEwNjc2MDQ0Nn0.0Ja7NglbWJZHDV3nL-OlHgBxC4sN35ciOLT7-9MVSjI";
         
-        let supabase;
+        // Rinominiamo la variabile interna per evitare conflitti con l'oggetto globale della libreria
+        let supabaseClient;
         let periodHistory = [];
 
         window.onload = function() {
             document.getElementById('newPeriodDate').value = new Date().toISOString().split('T')[0];
             
-         try {
-                // Controlla dove la CDN ha memorizzato la funzione per inizializzare il client
+            try {
+                // Inizializzazione pulita usando l'oggetto globale fornito dalla CDN
                 if (window.supabase && window.supabase.createClient) {
-                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                } else if (window.supabaseJS && window.supabaseJS.createClient) {
-                    supabase = window.supabaseJS.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                    fetchDataFromDB();
                 } else {
-                    // Cerca il modulo globale standard
-                    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+                    alert("La libreria Supabase non è stata caricata correttamente da internet. Verifica la connessione.");
                 }
-                
-                fetchDataFromDB();
             } catch (e) {
-                alert("Errore nell'inizializzazione del client di database: " + e.message);
-            }
-                alert("Errore nell'inizializzazione del client di database: " + e.message);
+                alert("Errore nell'inizializzazione del database: " + e.message);
             }
         };
 
         async function fetchDataFromDB() {
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('cicli')
                     .select('data_ciclo')
                     .order('data_ciclo', { ascending: false });
@@ -107,7 +102,7 @@
             if (periodHistory.includes(dateInput)) { alert("Questa data è già presente!"); return; }
 
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('cicli')
                     .insert([{ data_ciclo: dateInput }]);
 
@@ -124,7 +119,7 @@
         async function deletePeriod(dateString) {
             if (confirm("Vuoi davvero eliminare questa data dal database cloud?")) {
                 try {
-                    const { error } = await supabase
+                    const { error } = await supabaseClient
                         .from('cicli')
                         .delete()
                         .eq('data_ciclo', dateString);
